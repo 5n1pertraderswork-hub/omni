@@ -65,7 +65,7 @@
             border: 1px solid rgba(0, 240, 255, 0.1);
             box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 240, 255, 0.02);
             position: relative;
-            overflow: hidden;
+            /* Removed overflow: hidden here so the search dropdown can escape the header */
         }
 
         .glass-panel::before {
@@ -165,7 +165,7 @@
     <div class="cyber-grid"></div>
 
     <!-- Navigation / Header -->
-    <header class="glass-panel border-b border-cyber-cyan/20 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+    <header class="glass-panel !overflow-visible border-b border-cyber-cyan/20 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
         <div class="flex items-center gap-3">
             <i class="fa-solid fa-cube text-cyber-cyan text-2xl text-glow-cyan animate-spin-slow"></i>
             <div>
@@ -174,22 +174,30 @@
             </div>
         </div>
 
-        <div class="flex-1 max-w-xl mx-8 relative">
-            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <i class="fa-solid fa-search text-cyber-gray"></i>
+        <div class="flex-1 max-w-xl mx-4 lg:mx-8 relative flex items-center gap-4">
+            <!-- Market Mode Toggle -->
+            <div class="hidden md:flex items-center bg-cyber-darker p-1 rounded-md border border-cyber-cyan/30">
+                <button id="btnModeCrypto" class="px-4 py-1.5 rounded text-xs font-mono font-bold transition-all bg-cyber-cyan/20 text-cyber-cyan shadow-[0_0_10px_rgba(0,240,255,0.2)]">CRYPTO</button>
+                <button id="btnModeStocks" class="px-4 py-1.5 rounded text-xs font-mono font-bold transition-all text-cyber-gray hover:text-white border border-transparent whitespace-nowrap">IND STOCKS</button>
             </div>
-            <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-cyber-cyan/30 rounded-md leading-5 bg-cyber-dark/50 text-cyber-cyan placeholder-cyber-gray focus:outline-none focus:ring-1 focus:ring-cyber-cyan focus:border-cyber-cyan sm:text-sm font-mono transition-all" placeholder="Enter Ticker (e.g., BTC, AAPL, SOL)...">
-            <div id="searchResults" class="absolute w-full mt-1 bg-cyber-dark border border-cyber-cyan/30 rounded-md shadow-lg hidden z-50 overflow-hidden">
-                <!-- Search results injected here -->
+
+            <div class="flex-1 relative">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                    <i class="fa-solid fa-search text-cyber-gray"></i>
+                </div>
+                <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-cyber-cyan/30 rounded-md leading-5 bg-cyber-dark/50 text-cyber-cyan placeholder-cyber-gray focus:outline-none focus:ring-1 focus:ring-cyber-cyan focus:border-cyber-cyan sm:text-sm font-mono transition-all" placeholder="Search 10,000+ Crypto Tokens...">
+                <div id="searchResults" class="absolute w-full mt-1 bg-cyber-dark border border-cyber-cyan/30 rounded-md shadow-[0_10px_30px_rgba(0,0,0,0.8)] hidden z-50 max-h-64 overflow-y-auto">
+                    <!-- Search results injected here -->
+                </div>
             </div>
         </div>
 
-        <div class="flex items-center gap-6 font-mono text-sm">
+        <div class="hidden md:flex items-center gap-6 font-mono text-sm shrink-0">
             <div class="flex items-center gap-2">
                 <div class="pulse-dot"></div>
                 <span class="text-cyber-green text-glow-green">SYSTEM ONLINE</span>
             </div>
-            <div class="text-cyber-gray hidden md:block">
+            <div class="text-cyber-gray">
                 NODE: <span class="text-cyber-cyan">AX-779</span>
             </div>
         </div>
@@ -457,10 +465,10 @@
             <div class="scanline" style="animation-duration: 6s; opacity: 0.1;"></div>
             <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
                 <div>
-                    <h3 class="font-display text-xl text-white flex items-center gap-2">
-                        <i class="fa-solid fa-satellite-dish text-cyber-purple animate-pulse"></i> QUANTUM RADAR // HIGH-YIELD ANOMALIES
+                    <h3 class="font-display text-xl text-white flex items-center gap-2" id="radarTitle">
+                        <i class="fa-solid fa-satellite-dish text-cyber-cyan animate-pulse"></i> QUANTUM RADAR // CRYPTO ANOMALIES
                     </h3>
-                    <p class="text-[10px] font-mono text-cyber-gray mt-1 uppercase">Algorithmic scan detecting imminent explosive price vectors (Crypto & Indian Markets)</p>
+                    <p class="text-[10px] font-mono text-cyber-gray mt-1 uppercase">Algorithmic scan detecting imminent explosive price vectors</p>
                 </div>
                 <div class="text-[10px] font-mono text-cyber-cyan border border-cyber-cyan/50 bg-cyber-cyan/10 px-3 py-1 rounded-sm glitch-effect whitespace-nowrap">
                     AUTO-SCAN: ACTIVE
@@ -479,10 +487,65 @@
         // Enter your free Finnhub.io API key here to enable LIVE stock data (e.g., AAPL).
         // Crypto data uses CoinGecko and works without an API key!
         const FINNHUB_API_KEY = 'DEMO_KEY'; 
+        let currentMode = 'CRYPTO'; // Global state for Crypto vs Stocks mode
 
         // --- FORMATTERS ---
         const formatPrice = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(num);
         const formatCompact = (num) => new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short", style: 'currency', currency: 'USD' }).format(num);
+
+        // --- SYNTHETIC ORACLE ENGINE (For Universal Search) ---
+        function getSeededRandom(seed) {
+            let x = Math.sin(seed++) * 10000;
+            return x - Math.floor(x);
+        }
+        function stringHash(str) {
+            let hash = 0;
+            for (let i = 0; i < str.length; i++) { hash = str.charCodeAt(i) + ((hash << 5) - hash); }
+            return Math.abs(hash);
+        }
+        function generateDynamicAsset(coin) {
+            const hash = stringHash(coin.id);
+            const r1 = getSeededRandom(hash);
+            const r2 = getSeededRandom(hash + 1);
+            const r3 = getSeededRandom(hash + 2);
+            
+            const omniScore = Math.floor(40 + (r1 * 55));
+            const isBullish = omniScore > 50;
+            const predReturn = isBullish ? `+${(10 + r2 * 400).toFixed(1)}%` : `-${(5 + r2 * 30).toFixed(1)}%`;
+            
+            const astroTransits = ['Pluto Trine Midheaven', 'Mars Square Saturn', 'Jupiter Conjunct Venus', 'Mercury Retrograde Shadow', 'Uranus Sextile Sun', 'Neptune in Pisces'];
+            const moonPhases = ['Waxing Crescent', 'Full Moon', 'Waning Gibbous', 'New Moon', 'First Quarter'];
+            
+            return {
+                isDynamic: true,
+                cgId: coin.id, name: coin.name, ticker: coin.symbol.toUpperCase() + '/USD', type: 'CRYPTO (DYNAMIC)', sector: 'UNIVERSAL WEB3', icon: coin.thumb || 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                fallbackPrice: 'Loading...', fallbackChange: '0.0', 
+                predReturn: predReturn, predTimeframe: '6 Months', targetPrice: 'Auto-Calibrating...', confidence: Math.floor(50 + r3 * 45), 
+                risk: isBullish ? 'HIGH' : 'EXTREME', riskClass: isBullish ? 'text-cyber-purple' : 'text-cyber-red',
+                omniScore: omniScore, weights: [25, 25, 25, 25],
+                tech: { 
+                    verdict: isBullish ? 'BULLISH' : 'BEARISH', 
+                    class: isBullish ? 'text-cyber-green border-cyber-green/30 bg-cyber-green/10' : 'text-cyber-red border-cyber-red/30 bg-cyber-red/10', 
+                    rsi: (30 + r1 * 40).toFixed(1), rsiDesc: 'Algorithmic', macd: isBullish ? '+' : '-', macdDesc: 'Dynamic', sma: 'Calculating...', atr: 'Variable' 
+                },
+                fund: [
+                    { id: 'mcap', label: 'Market Cap', fallback: 'Loading...' },
+                    { id: 'supply', label: 'Circulating Supply', fallback: 'Loading...' },
+                    { label: 'Network Activity', fallback: 'Scanning...', class: 'text-cyber-cyan' }
+                ],
+                news: [
+                    { type: 'AI Scanner', time: 'Live', text: `Quantum neural net is analyzing global semantic data streams for ${coin.name}.`, mood: 'neutral' }
+                ],
+                sentiment: Math.floor(30 + r2 * 60),
+                astro: {
+                    transit: astroTransits[Math.floor(r1 * astroTransits.length)], transitDesc: 'Dynamically mapped esoteric alignment vector.',
+                    moon: moonPhases[Math.floor(r2 * moonPhases.length)], moonDesc: 'Lunar correlation matrix applied.',
+                    interference: r3 > 0.5 ? 'Moderate' : 'Low', interferenceClass: 'text-cyber-purple', interferenceDesc: 'Cosmic background noise levels normal.',
+                    icon: 'fa-star'
+                },
+                fallbackChart: [10, 12, 11, 15, 14, 18, 17, 20]
+            };
+        }
 
         // Database of assets containing static AI/Esoteric metrics and fallback data
         const database = {
@@ -512,7 +575,53 @@
                     interference: 'Low / Clear', interferenceClass: 'text-cyber-green text-glow-green', interferenceDesc: 'No major retrogrades affecting ruling planets.',
                     icon: 'fa-moon'
                 },
-                fallbackChart: [42000, 41500, 48000, 52000, 50500, 61000, 59000, 64230]
+                fallbackChart: [61000, 62500, 62000, 63000, 63800, 63500, 64000, 64230.50]
+            },
+            'TATAMOTORS.NS': {
+                symbol: 'TATAMOTORS.NS', name: 'Tata Motors', ticker: 'TATAMOTORS', type: 'IND STOCK', sector: 'AUTO', icon: 'https://upload.wikimedia.org/wikipedia/commons/8/8e/Tata_logo.svg',
+                fallbackPrice: '₹1,025.40', fallbackChange: '+2.1', predReturn: '+35.0%', predTimeframe: '12 Months', targetPrice: '₹1,385.00', confidence: 85, risk: 'MODERATE', riskClass: 'text-cyber-purple',
+                omniScore: 88, weights: [20, 50, 15, 15],
+                tech: { verdict: 'STEADY UPTREND', class: 'text-cyber-cyan border-cyber-cyan/30 bg-cyber-cyan/10', rsi: '62.4', rsiDesc: 'Bullish', macd: '+15.2', macdDesc: 'Rising', sma: '₹850.00', atr: 'Medium' },
+                fund: [
+                    { id: 'mcap', label: 'Market Cap', fallback: '₹3.4L Cr' },
+                    { label: 'EV Market Share', fallback: 'Dominant (70%+)' },
+                    { label: 'JLR Revenue', fallback: 'Surging', class: 'text-cyber-green' },
+                    { label: 'Debt Profile', fallback: 'Deleveraging rapidly' }
+                ],
+                news: [
+                    { type: 'Corporate', time: '4h ago', text: 'New EV manufacturing plant receives massive government subsidy clearance.', mood: 'pos' }
+                ],
+                sentiment: 86,
+                astro: {
+                    transit: 'Mars Trine Saturn', transitDesc: 'Disciplined, powerful forward motion in industrial sectors.',
+                    moon: 'First Quarter', moonDesc: 'Taking action, overcoming initial roadblocks in global supply chain.',
+                    interference: 'Low', interferenceClass: 'text-cyber-green text-glow-green', interferenceDesc: 'Clear path for heavy machinery and manufacturing.',
+                    icon: 'fa-car'
+                },
+                fallbackChart: [800, 850, 920, 900, 950, 980, 1000, 1025.40]
+            },
+            'IRFC.NS': {
+                symbol: 'IRFC.NS', name: 'Indian Railway Fin', ticker: 'IRFC', type: 'IND STOCK', sector: 'RAIL FINANCE', icon: 'https://upload.wikimedia.org/wikipedia/commons/e/e0/Indian_Railway_Finance_Corporation_logo.png',
+                fallbackPrice: '₹145.20', fallbackChange: '+4.8', predReturn: '+65.0%', predTimeframe: '6 Months', targetPrice: '₹240.00', confidence: 72, risk: 'HIGH', riskClass: 'text-cyber-red',
+                omniScore: 79, weights: [40, 30, 20, 10],
+                tech: { verdict: 'MOMENTUM SPIKE', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '78.5', rsiDesc: 'Overbought', macd: '+8.4', macdDesc: 'Bull Cross', sma: '₹95.00', atr: 'High' },
+                fund: [
+                    { id: 'mcap', label: 'Market Cap', fallback: '₹1.9L Cr' },
+                    { label: 'Govt Backing', fallback: '100% Sovereign', class: 'text-cyber-cyan' },
+                    { label: 'Railway Capex', fallback: 'Record High' },
+                    { label: 'NPA', fallback: 'Zero' }
+                ],
+                news: [
+                    { type: 'Macro', time: '1d ago', text: 'Union budget hints at massive modernization fund for rail infrastructure.', mood: 'pos' }
+                ],
+                sentiment: 82,
+                astro: {
+                    transit: 'Pluto in Aquarius', transitDesc: 'Transformation of state-owned mass transit networks.',
+                    moon: 'Full Moon', moonDesc: 'Maximum visibility and retail frenzy.',
+                    interference: 'Moderate', interferenceClass: 'text-cyber-purple text-glow-purple', interferenceDesc: 'Bureaucratic delays possible, but trend remains intact.',
+                    icon: 'fa-train'
+                },
+                fallbackChart: [70, 85, 110, 130, 125, 140, 138, 145.20]
             },
             'AAPL': {
                 symbol: 'AAPL', // Used for live Stock fetch
@@ -564,11 +673,11 @@
                     transit: 'Mars in Aries', transitDesc: 'Aggressive, fast-paced upward momentum. High volatility.',
                     moon: 'First Quarter', moonDesc: 'Overcoming obstacles. Strong directional bias forming.',
                     interference: 'Moderate', interferenceClass: 'text-cyber-purple text-glow-purple', interferenceDesc: 'Minor network alignment turbulence predicted mid-week.',
-                icon: 'fa-meteor'
+                    icon: 'fa-meteor'
+                },
+                fallbackChart: [110, 105, 120, 125, 138, 135, 142, 145.20]
             },
-            fallbackChart: [110, 105, 120, 125, 138, 135, 142, 145.20]
-        },
-        'ZOMATO.NS': {
+            'ZOMATO.NS': {
             symbol: 'ZOMATO.NS', name: 'Zomato Ltd', ticker: 'ZOMATO', type: 'IND STOCK', sector: 'CONSUMER TECH', icon: 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Zomato_Logo.svg',
             fallbackPrice: '₹264.50', fallbackChange: '+4.2', predReturn: '+85.0%', predTimeframe: '6 Months', targetPrice: '₹489.00', confidence: 89, risk: 'HIGH', riskClass: 'text-cyber-red',
             omniScore: 92, weights: [25, 40, 20, 15],
@@ -614,6 +723,29 @@
                 icon: 'fa-building'
             },
             fallbackChart: [2600, 2650, 2750, 2700, 2800, 2850, 2900, 2950]
+        },
+        'NVDA': {
+            symbol: 'NVDA', name: 'Nvidia Corp', ticker: 'NVDA', type: 'STOCK', sector: 'SEMICONDUCTOR', icon: 'https://upload.wikimedia.org/wikipedia/commons/2/21/Nvidia_logo.svg',
+            fallbackPrice: '$135.20', fallbackChange: '+2.4', predReturn: '+45.0%', predTimeframe: '12 Months', targetPrice: '$196.00', confidence: 91, risk: 'MODERATE', riskClass: 'text-cyber-purple',
+            omniScore: 89, weights: [35, 45, 15, 5],
+            tech: { verdict: 'STRONG BULLISH', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '65.4', rsiDesc: 'Bullish', macd: '+3.2', macdDesc: 'Rising', sma: '$110.00', atr: 'High' },
+            fund: [
+                { id: 'mcap', label: 'Market Cap', fallback: '$3.3T' },
+                { label: 'P/E Ratio', fallback: '42.5' },
+                { label: 'AI Market Share', fallback: 'Dominant', class: 'text-cyber-green' },
+                { label: 'Revenue Growth', fallback: '+120% YoY' }
+            ],
+            news: [
+                { type: 'AI Summary', time: '1h ago', text: 'New Blackwell chips seeing unprecedented demand from major hyperscalers.', mood: 'pos' }
+            ],
+            sentiment: 95,
+            astro: {
+                transit: 'Uranus Trine Midheaven', transitDesc: 'Sudden public success and technological breakthroughs.',
+                moon: 'Full Moon', moonDesc: 'Maximum visibility and culmination of previous cycles.',
+                interference: 'Low', interferenceClass: 'text-cyber-green text-glow-green', interferenceDesc: 'Clear skies for tech advancements.',
+                icon: 'fa-microchip'
+            },
+            fallbackChart: [115, 120, 118, 125, 130, 128, 133, 135.20]
         },
         'RNDR': {
             cgId: 'render-token', name: 'Render', ticker: 'RNDR/USD', type: 'CRYPTO', sector: 'AI / DEPIN', icon: 'https://cryptologos.cc/logos/render-token-rndr-logo.png',
@@ -665,7 +797,31 @@
     };
 
     let currentAsset = 'BTC';
-        let chartInstance = null;
+    let chartInstance = null;
+
+    // --- MODE TOGGLES ---
+    document.getElementById('btnModeCrypto').addEventListener('click', () => setMode('CRYPTO'));
+        document.getElementById('btnModeStocks').addEventListener('click', () => setMode('STOCKS'));
+
+        function setMode(mode) {
+            currentMode = mode;
+            
+            const btnC = document.getElementById('btnModeCrypto');
+            const btnS = document.getElementById('btnModeStocks');
+            
+            if(mode === 'CRYPTO') {
+                btnC.className = "px-4 py-1.5 rounded text-xs font-mono font-bold transition-all bg-cyber-cyan/20 text-cyber-cyan shadow-[0_0_10px_rgba(0,240,255,0.2)]";
+                btnS.className = "px-4 py-1.5 rounded text-xs font-mono font-bold transition-all text-cyber-gray hover:text-white border border-transparent whitespace-nowrap";
+                document.getElementById('searchInput').placeholder = "Search 10,000+ Crypto Tokens...";
+                loadAsset('BTC');
+            } else {
+                btnS.className = "px-4 py-1.5 rounded text-xs font-mono font-bold transition-all bg-cyber-purple/20 text-cyber-purple shadow-[0_0_10px_rgba(176,38,255,0.2)] whitespace-nowrap";
+                btnC.className = "px-4 py-1.5 rounded text-xs font-mono font-bold transition-all text-cyber-gray hover:text-white border border-transparent";
+                document.getElementById('searchInput').placeholder = "Search Indian Stocks (e.g. ZOMATO)...";
+                loadAsset('RELIANCE.NS');
+            }
+            initRadar();
+        }
 
         // --- LIVE DATA FETCHING ---
         async function fetchLiveData(assetKey, assetData) {
@@ -743,6 +899,13 @@
             priceEl.innerText = displayPrice;
             changeEl.innerHTML = `<i class="fa-solid ${changeIcon}"></i> <span>${displayChange}</span>`;
             changeEl.className = `font-mono text-lg flex items-center gap-1 ${changeClass}`;
+
+            // Auto-calculate target price for dynamically searched assets once live price is acquired
+            if (staticData.isDynamic && liveData && liveData.price) {
+                const numPrice = parseFloat(liveData.price.replace(/[^0-9.-]+/g,""));
+                const pct = parseFloat(staticData.predReturn.replace(/[^0-9.-]+/g,"")) / 100;
+                staticData.targetPrice = formatPrice(numPrice * (1 + pct));
+            }
 
             // Prediction Block
             document.getElementById('predTimeframe').innerText = staticData.predTimeframe;
@@ -878,30 +1041,101 @@
             });
         }
 
+        // --- DYNAMIC CRYPTO GENERATOR ---
+        function loadDynamicCrypto(cgId, symbol, name, icon) {
+            const key = symbol;
+            if (!database[key]) {
+                // Generate deep synthetic analysis for newly discovered tokens
+                database[key] = {
+                    cgId: cgId, name: name, ticker: `${symbol}/USD`, type: 'CRYPTO', sector: 'DYNAMIC ALTCOIN', icon: icon || 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                    fallbackPrice: 'Fetching Live...', fallbackChange: '0.0', 
+                    predReturn: '+' + (Math.random() * 200 + 10).toFixed(1) + '%', 
+                    predTimeframe: '6 Months', targetPrice: 'Calculating...', 
+                    confidence: Math.floor(Math.random() * 40 + 50), 
+                    risk: Math.random() > 0.5 ? 'HIGH' : 'EXTREME', riskClass: 'text-cyber-red',
+                    omniScore: Math.floor(Math.random() * 40 + 50), weights: [30, 20, 30, 20],
+                    tech: { verdict: 'VOLATILE', class: 'text-cyber-purple border-cyber-purple/30 bg-cyber-purple/10', rsi: (Math.random()*60+20).toFixed(1), rsiDesc: 'Neutral', macd: 'Pending', macdDesc: 'Cross', sma: 'Analyzing', atr: 'High' },
+                    fund: [
+                        { id: 'mcap', label: 'Market Cap', fallback: 'Loading...' },
+                        { id: 'supply', label: 'Circulating Supply', fallback: 'Loading...' },
+                        { label: 'Network Hashrate', fallback: 'N/A' },
+                        { label: 'Adoption Curve', fallback: 'Emerging', class: 'text-cyber-cyan' },
+                        { label: 'Value Proposition', fallback: 'Web3 Protocol' }
+                    ],
+                    news: [
+                        { type: 'AI Summary', time: 'Just now', text: `Anomaly detected in ${name} volume patterns. Neural Net monitoring closely.`, mood: 'neutral' }
+                    ],
+                    sentiment: Math.floor(Math.random() * 40 + 40),
+                    astro: {
+                        transit: 'Uranus Sextile Node', transitDesc: 'Unexpected shifts in protocol value parameters.',
+                        moon: 'Void of Course', moonDesc: 'Lack of clear direction. Awaiting external catalyst.',
+                        interference: 'Moderate', interferenceClass: 'text-cyber-purple text-glow-purple', interferenceDesc: 'Background cosmic noise typical for early-stage dynamic altcoins.',
+                        icon: 'fa-meteor'
+                    },
+                    fallbackChart: Array.from({length: 8}, () => Math.random() * 100)
+                };
+            }
+            loadAsset(key);
+        }
+
         const searchInput = document.getElementById('searchInput');
         const searchResults = document.getElementById('searchResults');
+        let searchTimeout = null;
 
         searchInput.addEventListener('input', (e) => {
-            const val = e.target.value.toUpperCase();
-            if (val.length > 0) {
-                searchResults.classList.remove('hidden');
-                searchResults.innerHTML = '';
-                const matches = Object.keys(database).filter(k => k.includes(val) || database[k].name.toUpperCase().includes(val));
-                
-                if (matches.length > 0) {
-                    matches.forEach(match => {
-                        const div = document.createElement('div');
-                        div.className = 'px-4 py-2 hover:bg-cyber-cyan/10 cursor-pointer text-sm font-mono flex justify-between items-center border-b border-white/5 last:border-0';
-                        div.innerHTML = `<span class="text-white">${database[match].name}</span> <span class="text-cyber-cyan">${match}</span>`;
-                        div.onclick = () => loadAsset(match);
-                        searchResults.appendChild(div);
-                    });
-                } else {
-                    searchResults.innerHTML = '<div class="px-4 py-2 text-sm font-mono text-cyber-gray">No known quantum vectors found.</div>';
-                }
-            } else {
+            const val = e.target.value.toLowerCase().trim();
+            if (val.length < 2) {
                 searchResults.classList.add('hidden');
+                return;
             }
+            
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(async () => {
+                searchResults.classList.remove('hidden');
+                searchResults.innerHTML = '<div class="px-4 py-3 text-sm font-mono text-cyber-cyan animate-pulse">Scanning Global Neural Nets...</div>';
+                
+                let resultsHTML = '';
+                
+                if (currentMode === 'STOCKS') {
+                    // Local DB search for IND STOCKS only
+                    const matches = Object.keys(database).filter(k => 
+                        database[k].type === 'IND STOCK' && 
+                        (k.toLowerCase().includes(val) || database[k].name.toLowerCase().includes(val))
+                    );
+                    
+                    if (matches.length > 0) {
+                        matches.forEach(match => {
+                            resultsHTML += `<div class="px-4 py-3 hover:bg-cyber-purple/20 cursor-pointer text-sm font-mono flex justify-between items-center border-b border-white/5 last:border-0 transition-colors" onclick="loadAsset('${match}')">
+                                <span class="text-white">${database[match].name}</span> <span class="text-cyber-purple bg-cyber-purple/10 px-2 rounded border border-cyber-purple/30">${match}</span>
+                            </div>`;
+                        });
+                    } else {
+                        resultsHTML = '<div class="px-4 py-3 text-sm font-mono text-cyber-gray">No Indian Stock vectors found.</div>';
+                    }
+                    searchResults.innerHTML = resultsHTML;
+                    
+                } else {
+                    // CRYPTO - CoinGecko Live Global Search
+                    try {
+                        const res = await fetch(`https://api.coingecko.com/api/v3/search?query=${val}`);
+                        const data = await res.json();
+                        
+                        if (data.coins && data.coins.length > 0) {
+                            data.coins.slice(0, 7).forEach(coin => {
+                                const thumb = coin.thumb || 'https://cryptologos.cc/logos/bitcoin-btc-logo.png';
+                                resultsHTML += `<div class="px-4 py-3 hover:bg-cyber-cyan/20 cursor-pointer text-sm font-mono flex justify-between items-center border-b border-white/5 last:border-0 transition-colors" onclick="loadDynamicCrypto('${coin.id}', '${coin.symbol.toUpperCase()}', '${coin.name}', '${thumb}')">
+                                    <div class="flex items-center gap-3"><img src="${thumb}" class="w-6 h-6 rounded-full object-cover border border-cyber-cyan/30"> <span class="text-white font-bold tracking-wide">${coin.name}</span></div> <span class="text-cyber-cyan bg-cyber-cyan/10 px-2 rounded border border-cyber-cyan/30">${coin.symbol.toUpperCase()}</span>
+                                </div>`;
+                            });
+                        } else {
+                            resultsHTML = '<div class="px-4 py-3 text-sm font-mono text-cyber-gray">No known quantum vectors found.</div>';
+                        }
+                    } catch(err) {
+                        resultsHTML = '<div class="px-4 py-3 text-sm font-mono text-cyber-red">Link severed. API limit reached. Retrying...</div>';
+                    }
+                    searchResults.innerHTML = resultsHTML;
+                }
+            }, 400); // 400ms debounce to prevent API spam
         });
 
         document.addEventListener('click', (e) => {
@@ -924,7 +1158,16 @@
         // Initialize Quantum Radar (Hot Targets)
         function initRadar() {
             const radarGrid = document.getElementById('radarGrid');
-            const hotAssets = ['ZOMATO.NS', 'RNDR', 'RELIANCE.NS', 'PEPE'];
+            let hotAssets = [];
+            
+            // Swap radar content based on mode
+            if (currentMode === 'CRYPTO') {
+                document.getElementById('radarTitle').innerHTML = '<i class="fa-solid fa-satellite-dish text-cyber-cyan animate-pulse"></i> QUANTUM RADAR // CRYPTO ANOMALIES';
+                hotAssets = ['BTC', 'SOL', 'RNDR', 'PEPE'];
+            } else {
+                document.getElementById('radarTitle').innerHTML = '<i class="fa-solid fa-satellite-dish text-cyber-purple animate-pulse"></i> QUANTUM RADAR // IND STOCK ANOMALIES';
+                hotAssets = ['ZOMATO.NS', 'RELIANCE.NS', 'TATAMOTORS.NS', 'IRFC.NS'];
+            }
             
             radarGrid.innerHTML = '';
             hotAssets.forEach(assetKey => {
@@ -933,7 +1176,7 @@
                 
                 const isCrypto = asset.type === 'CRYPTO';
                 const themeColor = isCrypto ? 'cyber-cyan' : 'cyber-purple';
-                const invertClass = (assetKey === 'RELIANCE.NS' || assetKey === 'AAPL') ? 'invert opacity-70' : '';
+                const invertClass = (assetKey === 'RELIANCE.NS') ? 'invert opacity-70' : '';
 
                 radarGrid.innerHTML += `
                     <div class="bg-cyber-dark/50 border border-${themeColor}/20 hover:border-${themeColor}/80 p-4 rounded-lg cursor-pointer transition-all hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(${isCrypto?'0,240,255':'176,38,255'},0.3)] group" onclick="loadAsset('${assetKey}')">
