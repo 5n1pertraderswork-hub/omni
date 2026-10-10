@@ -1,0 +1,982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OmniQuant | Hyper-Dimensional Asset Analysis</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@400;500;600;700&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            dark: '#050a15',
+                            darker: '#02050a',
+                            panel: 'rgba(10, 15, 30, 0.7)',
+                            cyan: '#00f0ff',
+                            purple: '#b026ff',
+                            green: '#00ff66',
+                            red: '#ff003c',
+                            gray: '#8a9ab0'
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Rajdhani', 'sans-serif'],
+                        display: ['Orbitron', 'sans-serif'],
+                        mono: ['Space Mono', 'monospace'],
+                    },
+                    backgroundImage: {
+                        'grid-pattern': `linear-gradient(to right, rgba(0, 240, 255, 0.05) 1px, transparent 1px),
+                                         linear-gradient(to bottom, rgba(0, 240, 255, 0.05) 1px, transparent 1px)`,
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #02050a;
+            color: #e2e8f0;
+            background-image: 
+                radial-gradient(circle at 50% 0%, rgba(0, 240, 255, 0.1) 0%, transparent 50%),
+                radial-gradient(circle at 100% 100%, rgba(176, 38, 255, 0.05) 0%, transparent 50%);
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+
+        .cyber-grid {
+            position: fixed;
+            top: 0; left: 0; width: 100vw; height: 100vh;
+            background-image: linear-gradient(to right, rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+            background-size: 40px 40px;
+            z-index: -1;
+            pointer-events: none;
+        }
+
+        .glass-panel {
+            background: linear-gradient(135deg, rgba(10, 15, 30, 0.8) 0%, rgba(5, 10, 20, 0.9) 100%);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(0, 240, 255, 0.1);
+            box-shadow: 0 4px 30px rgba(0, 0, 0, 0.5), inset 0 0 20px rgba(0, 240, 255, 0.02);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .glass-panel::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 2px;
+            background: linear-gradient(90deg, transparent, rgba(0, 240, 255, 0.5), transparent);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .glass-panel:hover::before {
+            opacity: 1;
+        }
+
+        .text-glow-cyan { text-shadow: 0 0 10px rgba(0, 240, 255, 0.7); }
+        .text-glow-purple { text-shadow: 0 0 10px rgba(176, 38, 255, 0.7); }
+        .text-glow-green { text-shadow: 0 0 10px rgba(0, 255, 102, 0.7); }
+        .text-glow-red { text-shadow: 0 0 10px rgba(255, 0, 60, 0.7); }
+
+        .scanline {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: rgba(0, 240, 255, 0.3);
+            opacity: 0.5;
+            animation: scan 4s linear infinite;
+            pointer-events: none;
+            z-index: 10;
+        }
+
+        @keyframes scan {
+            0% { transform: translateY(-100%); }
+            100% { transform: translateY(1000%); }
+        }
+
+        .glitch-effect:hover {
+            animation: glitch 0.2s cubic-bezier(.25, .46, .45, .94) both infinite;
+        }
+
+        @keyframes glitch {
+            0% { transform: translate(0) }
+            20% { transform: translate(-2px, 2px) }
+            40% { transform: translate(-2px, -2px) }
+            60% { transform: translate(2px, 2px) }
+            80% { transform: translate(2px, -2px) }
+            100% { transform: translate(0) }
+        }
+
+        /* Custom Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #050a15; }
+        ::-webkit-scrollbar-thumb { background: rgba(0, 240, 255, 0.3); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: rgba(0, 240, 255, 0.6); }
+
+        .stat-circle {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: conic-gradient(var(--fill-color) var(--percent), #1a202c 0);
+        }
+        .stat-circle::after {
+            content: '';
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: #050a15;
+        }
+        .stat-circle span {
+            position: relative;
+            z-index: 1;
+            font-family: 'Space Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: bold;
+        }
+
+        .pulse-dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background-color: #00ff66;
+            box-shadow: 0 0 10px #00ff66, 0 0 20px #00ff66;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 102, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 10px rgba(0, 255, 102, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(0, 255, 102, 0); }
+        }
+    </style>
+</head>
+<body class="antialiased selection:bg-cyber-cyan selection:text-black min-h-screen flex flex-col">
+
+    <div class="cyber-grid"></div>
+
+    <!-- Navigation / Header -->
+    <header class="glass-panel border-b border-cyber-cyan/20 px-6 py-4 flex items-center justify-between sticky top-0 z-50">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-cube text-cyber-cyan text-2xl text-glow-cyan animate-spin-slow"></i>
+            <div>
+                <h1 class="font-display font-bold text-2xl tracking-wider text-white">OMNI<span class="text-cyber-cyan">QUANT</span></h1>
+                <p class="font-mono text-[10px] text-cyber-cyan/70 tracking-widest uppercase">Hyper-Dimensional Asset Oracle v3.1</p>
+            </div>
+        </div>
+
+        <div class="flex-1 max-w-xl mx-8 relative">
+            <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <i class="fa-solid fa-search text-cyber-gray"></i>
+            </div>
+            <input type="text" id="searchInput" class="block w-full pl-10 pr-3 py-2 border border-cyber-cyan/30 rounded-md leading-5 bg-cyber-dark/50 text-cyber-cyan placeholder-cyber-gray focus:outline-none focus:ring-1 focus:ring-cyber-cyan focus:border-cyber-cyan sm:text-sm font-mono transition-all" placeholder="Enter Ticker (e.g., BTC, AAPL, SOL)...">
+            <div id="searchResults" class="absolute w-full mt-1 bg-cyber-dark border border-cyber-cyan/30 rounded-md shadow-lg hidden z-50 overflow-hidden">
+                <!-- Search results injected here -->
+            </div>
+        </div>
+
+        <div class="flex items-center gap-6 font-mono text-sm">
+            <div class="flex items-center gap-2">
+                <div class="pulse-dot"></div>
+                <span class="text-cyber-green text-glow-green">SYSTEM ONLINE</span>
+            </div>
+            <div class="text-cyber-gray hidden md:block">
+                NODE: <span class="text-cyber-cyan">AX-779</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="flex-1 p-4 md:p-6 lg:p-8 max-w-7xl mx-auto w-full grid grid-cols-1 lg:grid-cols-12 gap-6 relative">
+        <div class="scanline"></div>
+
+        <!-- LEFT COLUMN: Overview & Prediction (Takes up 4 cols on large screens) -->
+        <div class="lg:col-span-4 flex flex-col gap-6">
+            
+            <!-- Asset Identity Card -->
+            <div class="glass-panel rounded-xl p-6 relative">
+                <div class="absolute top-0 right-0 p-4 opacity-10 font-display text-6xl font-bold select-none" id="bgTicker">BTC</div>
+                <div class="flex items-start justify-between relative z-10">
+                    <div>
+                        <div class="flex items-center gap-2 mb-1">
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyber-cyan/10 text-cyber-cyan border border-cyber-cyan/30" id="assetType">CRYPTO</span>
+                            <span class="px-2 py-0.5 rounded text-[10px] font-mono bg-cyber-purple/10 text-cyber-purple border border-cyber-purple/30" id="assetSector">LAYER 1</span>
+                        </div>
+                        <h2 class="font-display text-4xl font-bold text-white tracking-wide" id="assetName">Bitcoin</h2>
+                        <h3 class="font-mono text-xl text-cyber-gray mt-1" id="assetTicker">BTC/USD</h3>
+                    </div>
+                    <img id="assetIcon" src="https://cryptologos.cc/logos/bitcoin-btc-logo.png" alt="Logo" class="w-16 h-16 object-contain drop-shadow-[0_0_15px_rgba(0,240,255,0.5)]">
+                </div>
+
+                <div class="mt-6 border-t border-cyber-cyan/20 pt-6">
+                    <div class="text-sm font-mono text-cyber-gray mb-1">CURRENT PRICE</div>
+                    <div class="flex items-baseline gap-3">
+                        <div class="font-display text-4xl font-bold text-white" id="currentPrice">$64,230.50</div>
+                        <div class="font-mono text-lg text-cyber-green flex items-center gap-1" id="priceChange">
+                            <i class="fa-solid fa-caret-up"></i> <span>2.4%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- The Oracle Prediction Engine -->
+            <div class="glass-panel rounded-xl p-1 relative overflow-hidden group">
+                <!-- Animated background gradient -->
+                <div class="absolute inset-0 bg-gradient-to-br from-cyber-cyan/10 via-transparent to-cyber-purple/10 opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
+                
+                <div class="bg-cyber-dark/80 p-5 rounded-lg relative z-10 h-full flex flex-col justify-between backdrop-blur-sm">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="font-display text-lg text-cyber-cyan flex items-center gap-2">
+                            <i class="fa-solid fa-eye"></i> OMNI-ORACLE PREDICTION
+                        </h3>
+                        <div class="text-[10px] font-mono text-cyber-purple border border-cyber-purple/50 px-2 rounded-sm glitch-effect cursor-default">AI SYNTHESIS ACTIVE</div>
+                    </div>
+
+                    <div class="flex-1 flex flex-col justify-center items-center py-6 text-center">
+                        <div class="text-sm font-mono text-cyber-gray mb-2 uppercase">Projected Return (<span id="predTimeframe">3 Months</span>)</div>
+                        <div class="font-display text-5xl font-black text-cyber-green text-glow-green tracking-tighter mb-2" id="projectedReturn">
+                            +42.5%
+                        </div>
+                        <div class="text-sm font-sans text-gray-400" id="predTargetText">Target Price: <span class="font-mono text-white" id="targetPrice">$91,520</span></div>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-4 mt-4 border-t border-white/5 pt-4">
+                        <div>
+                            <div class="text-[10px] font-mono text-cyber-gray">CONFIDENCE INDEX</div>
+                            <div class="flex items-center gap-2 mt-1">
+                                <div class="w-full bg-cyber-darker rounded-full h-1.5">
+                                    <div class="bg-cyber-cyan h-1.5 rounded-full" style="width: 87%" id="confidenceBar"></div>
+                                </div>
+                                <span class="font-mono text-xs text-cyber-cyan" id="confidenceValue">87%</span>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="text-[10px] font-mono text-cyber-gray">RISK FACTOR</div>
+                            <div class="font-mono text-sm text-cyber-red text-glow-red mt-1" id="riskLevel">MODERATE-HIGH</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Synthesis Score (The overarching score combining all 4 pillars) -->
+            <div class="glass-panel rounded-xl p-6">
+                <h3 class="font-display text-sm text-cyber-gray mb-4 uppercase">Vector Convergence Score</h3>
+                <div class="flex items-center justify-center gap-6">
+                    <div class="relative w-32 h-32 flex items-center justify-center">
+                        <!-- SVG Circle for score -->
+                        <svg class="transform -rotate-90 w-32 h-32" viewBox="0 0 100 100">
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#1a202c" stroke-width="8"></circle>
+                            <circle cx="50" cy="50" r="45" fill="none" stroke="#00f0ff" stroke-width="8" stroke-dasharray="282.7" stroke-dashoffset="56.54" id="omniScoreSvg" class="transition-all duration-1000 ease-out"></circle>
+                        </svg>
+                        <div class="absolute inset-0 flex flex-col items-center justify-center">
+                            <span class="font-display text-3xl font-bold text-white" id="omniScoreValue">82</span>
+                            <span class="text-[10px] font-mono text-cyber-cyan">/ 100</span>
+                        </div>
+                    </div>
+                    <div class="flex flex-col gap-2 w-full">
+                        <div class="flex justify-between items-center text-xs font-mono">
+                            <span class="text-cyber-gray">Technical</span>
+                            <span class="text-cyber-cyan" id="weightTech">25%</span>
+                        </div>
+                        <div class="w-full bg-cyber-darker h-1"><div class="bg-cyber-cyan h-1" id="barTech" style="width:80%"></div></div>
+                        
+                        <div class="flex justify-between items-center text-xs font-mono mt-1">
+                            <span class="text-cyber-gray">Fundamental</span>
+                            <span class="text-cyber-purple" id="weightFund">30%</span>
+                        </div>
+                        <div class="w-full bg-cyber-darker h-1"><div class="bg-cyber-purple h-1" id="barFund" style="width:90%"></div></div>
+
+                        <div class="flex justify-between items-center text-xs font-mono mt-1">
+                            <span class="text-cyber-gray">Sentiment/News</span>
+                            <span class="text-cyber-green" id="weightNews">20%</span>
+                        </div>
+                        <div class="w-full bg-cyber-darker h-1"><div class="bg-cyber-green h-1" id="barNews" style="width:65%"></div></div>
+
+                        <div class="flex justify-between items-center text-xs font-mono mt-1">
+                            <span class="text-cyber-gray">Astrological</span>
+                            <span class="text-cyber-red" id="weightAstro">25%</span>
+                        </div>
+                        <div class="w-full bg-cyber-darker h-1"><div class="bg-cyber-red h-1" id="barAstro" style="width:75%"></div></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT COLUMN: The 4 Pillars (Takes up 8 cols on large screens) -->
+        <div class="lg:col-span-8 flex flex-col gap-6">
+            
+            <!-- Pillar 1: Technical Analysis -->
+            <div class="glass-panel rounded-xl p-6 border-t-2 border-cyber-cyan">
+                <div class="flex justify-between items-center mb-4">
+                    <h3 class="font-display text-lg text-white flex items-center gap-2">
+                        <i class="fa-solid fa-chart-candlestick text-cyber-cyan"></i> QUANTUM TECHNICALS
+                    </h3>
+                    <div class="text-xs font-mono text-cyber-green bg-cyber-green/10 px-2 py-1 rounded border border-cyber-green/30" id="techVerdict">STRONGLY BULLISH</div>
+                </div>
+                
+                <!-- Main Chart Area -->
+                <div class="h-64 w-full relative mb-4">
+                    <canvas id="mainChart"></canvas>
+                </div>
+
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <div class="bg-cyber-dark/50 p-3 rounded border border-white/5">
+                        <div class="text-[10px] font-mono text-cyber-gray uppercase">RSI (14)</div>
+                        <div class="font-mono text-lg text-white mt-1" id="valRsi">68.4 <span class="text-cyber-cyan text-xs">Neutral</span></div>
+                    </div>
+                    <div class="bg-cyber-dark/50 p-3 rounded border border-white/5">
+                        <div class="text-[10px] font-mono text-cyber-gray uppercase">MACD</div>
+                        <div class="font-mono text-lg text-cyber-green mt-1" id="valMacd">+1,240 <span class="text-xs">Bull Cross</span></div>
+                    </div>
+                    <div class="bg-cyber-dark/50 p-3 rounded border border-white/5">
+                        <div class="text-[10px] font-mono text-cyber-gray uppercase">200-Day SMA</div>
+                        <div class="font-mono text-lg text-white mt-1" id="valSma">$52,100</div>
+                    </div>
+                    <div class="bg-cyber-dark/50 p-3 rounded border border-white/5">
+                        <div class="text-[10px] font-mono text-cyber-gray uppercase">Volatility (ATR)</div>
+                        <div class="font-mono text-lg text-cyber-red mt-1" id="valAtr">High</div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Pillar 2: Fundamental Analysis -->
+                <div class="glass-panel rounded-xl p-6 border-t-2 border-cyber-purple">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-display text-lg text-white flex items-center gap-2">
+                            <i class="fa-solid fa-server text-cyber-purple"></i> DEEP FUNDAMENTALS
+                        </h3>
+                    </div>
+                    
+                    <ul class="space-y-4 font-mono text-sm" id="fundList">
+                        <!-- Populated by JS -->
+                        <li class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-cyber-gray">Market Cap</span>
+                            <span class="text-white">$1.2T</span>
+                        </li>
+                        <li class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-cyber-gray">Circulating Supply</span>
+                            <span class="text-white">19.6M BTC</span>
+                        </li>
+                        <li class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-cyber-gray">Network Hashrate</span>
+                            <span class="text-white">580 EH/s</span>
+                        </li>
+                        <li class="flex justify-between border-b border-white/5 pb-2">
+                            <span class="text-cyber-gray">Adoption Curve</span>
+                            <span class="text-cyber-purple">Accelerating</span>
+                        </li>
+                        <li class="flex justify-between">
+                            <span class="text-cyber-gray">Value Proposition</span>
+                            <span class="text-white text-right w-1/2 overflow-hidden text-ellipsis whitespace-nowrap">Digital Gold / Store of Value</span>
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Pillar 3: Semantic News / Sentiment -->
+                <div class="glass-panel rounded-xl p-6 border-t-2 border-cyber-green flex flex-col">
+                    <div class="flex justify-between items-center mb-4">
+                        <h3 class="font-display text-lg text-white flex items-center gap-2">
+                            <i class="fa-solid fa-satellite-dish text-cyber-green"></i> NEURAL SENTIMENT
+                        </h3>
+                        <div class="stat-circle" style="--percent: 75%; --fill-color: #00ff66; width: 40px; height: 40px;" id="sentimentCircle">
+                            <span class="text-cyber-green">75</span>
+                        </div>
+                    </div>
+
+                    <div class="flex-1 overflow-y-auto pr-2 space-y-3" id="newsFeed">
+                        <!-- Populated by JS -->
+                        <div class="bg-cyber-dark/30 p-3 rounded border border-cyber-green/10 hover:border-cyber-green/30 transition-colors">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-mono text-cyber-green uppercase">AI Summary</span>
+                                <span class="text-[10px] font-mono text-cyber-gray">2m ago</span>
+                            </div>
+                            <p class="text-sm font-sans text-gray-300">Institutional inflows reach record highs as new ETFs gain massive traction globally.</p>
+                        </div>
+                         <div class="bg-cyber-dark/30 p-3 rounded border border-cyber-red/10 hover:border-cyber-red/30 transition-colors">
+                            <div class="flex justify-between items-start mb-1">
+                                <span class="text-[10px] font-mono text-cyber-red uppercase">AI Summary</span>
+                                <span class="text-[10px] font-mono text-cyber-gray">1h ago</span>
+                            </div>
+                            <p class="text-sm font-sans text-gray-300">Regulatory concerns loom as SEC announces potential review of DeFi protocols.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pillar 4: Astrological / Esoteric Analysis (The wildcard) -->
+            <div class="glass-panel rounded-xl p-6 border-t-2 border-cyber-red bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] bg-blend-screen">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="font-display text-lg text-white flex items-center gap-2">
+                            <i class="fa-solid fa-meteor text-cyber-red"></i> ESOTERIC ALIGNMENT
+                        </h3>
+                        <p class="text-[10px] font-mono text-cyber-gray mt-1 uppercase">Analyzing Genesis Block / IPO Natal Chart</p>
+                    </div>
+                    <div class="w-12 h-12 rounded-full border border-cyber-red/50 flex items-center justify-center animate-spin-slow" style="animation-duration: 20s;">
+                        <i class="fa-solid fa-moon text-cyber-red text-xl text-glow-red" id="moonPhaseIcon"></i>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                    <div class="bg-black/40 p-4 rounded-lg border border-white/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-cyber-red/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="text-xs font-mono text-cyber-gray mb-1 uppercase">Planetary Transit</div>
+                        <div class="font-display text-xl text-white mb-2" id="astroTransit">Jupiter Trine Sun</div>
+                        <p class="text-xs font-sans text-gray-400" id="astroTransitDesc">Indicates a period of massive expansion and institutional adoption. Auspicious for long-term holding.</p>
+                    </div>
+
+                    <div class="bg-black/40 p-4 rounded-lg border border-white/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-cyber-cyan/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="text-xs font-mono text-cyber-gray mb-1 uppercase">Current Moon Phase</div>
+                        <div class="font-display text-xl text-white mb-2" id="astroMoon">Waxing Gibbous</div>
+                        <p class="text-xs font-sans text-gray-400" id="astroMoonDesc">Building momentum. Historical data suggests 68% correlation with upward price action during this phase for this specific asset.</p>
+                    </div>
+
+                    <div class="bg-black/40 p-4 rounded-lg border border-white/5 relative overflow-hidden group">
+                        <div class="absolute inset-0 bg-cyber-purple/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                        <div class="text-xs font-mono text-cyber-gray mb-1 uppercase">Cosmic Interference</div>
+                        <div class="font-display text-xl text-cyber-green text-glow-green mb-2" id="astroInterference">Low / Clear</div>
+                        <p class="text-xs font-sans text-gray-400" id="astroInterferenceDesc">No major retrogrades affecting the asset's ruling planet. Communication and network stability expected to be optimal.</p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <!-- BOTTOM SECTION: Quantum Radar (Hot Targets) -->
+        <div class="lg:col-span-12 glass-panel rounded-xl p-6 border-t-2 border-cyber-purple relative overflow-hidden mt-2">
+            <div class="scanline" style="animation-duration: 6s; opacity: 0.1;"></div>
+            <div class="flex flex-col md:flex-row items-start md:items-center justify-between mb-6 gap-4">
+                <div>
+                    <h3 class="font-display text-xl text-white flex items-center gap-2">
+                        <i class="fa-solid fa-satellite-dish text-cyber-purple animate-pulse"></i> QUANTUM RADAR // HIGH-YIELD ANOMALIES
+                    </h3>
+                    <p class="text-[10px] font-mono text-cyber-gray mt-1 uppercase">Algorithmic scan detecting imminent explosive price vectors (Crypto & Indian Markets)</p>
+                </div>
+                <div class="text-[10px] font-mono text-cyber-cyan border border-cyber-cyan/50 bg-cyber-cyan/10 px-3 py-1 rounded-sm glitch-effect whitespace-nowrap">
+                    AUTO-SCAN: ACTIVE
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4" id="radarGrid">
+                <!-- Injected via JS -->
+            </div>
+        </div>
+
+    </main>
+
+    <script>
+        // --- API CONFIGURATION ---
+        // Enter your free Finnhub.io API key here to enable LIVE stock data (e.g., AAPL).
+        // Crypto data uses CoinGecko and works without an API key!
+        const FINNHUB_API_KEY = 'DEMO_KEY'; 
+
+        // --- FORMATTERS ---
+        const formatPrice = (num) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2, maximumFractionDigits: 6 }).format(num);
+        const formatCompact = (num) => new Intl.NumberFormat('en-US', { notation: "compact", compactDisplay: "short", style: 'currency', currency: 'USD' }).format(num);
+
+        // Database of assets containing static AI/Esoteric metrics and fallback data
+        const database = {
+            'BTC': {
+                cgId: 'bitcoin', // Used for live CoinGecko fetch
+                name: 'Bitcoin', ticker: 'BTC/USD', type: 'CRYPTO', sector: 'LAYER 1', icon: 'https://cryptologos.cc/logos/bitcoin-btc-logo.png',
+                fallbackPrice: '$64,230.50', fallbackChange: '+2.4', 
+                predReturn: '+42.5%', predTimeframe: '6 Months', targetPrice: '$91,520', confidence: 87, risk: 'MODERATE', riskClass: 'text-cyber-purple',
+                omniScore: 88, weights: [25, 40, 20, 15],
+                tech: { verdict: 'STRONGLY BULLISH', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '68.4', rsiDesc: 'Neutral', macd: '+1,240', macdDesc: 'Bull Cross', sma: '$52,100', atr: 'High' },
+                fund: [
+                    { id: 'mcap', label: 'Market Cap', fallback: '$1.2T' },
+                    { id: 'supply', label: 'Circulating Supply', fallback: '19.6M BTC' },
+                    { label: 'Network Hashrate', fallback: '580 EH/s' },
+                    { label: 'Adoption Curve', fallback: 'Accelerating', class: 'text-cyber-cyan' },
+                    { label: 'Value Proposition', fallback: 'Digital Gold' }
+                ],
+                news: [
+                    { type: 'AI Summary', time: '2m ago', text: 'Institutional inflows reach record highs as new ETFs gain massive traction globally.', mood: 'pos' },
+                    { type: 'On-Chain', time: '1h ago', text: 'Whale wallets accumulate 10,000 BTC in the last 24 hours, signaling strong support.', mood: 'pos' },
+                    { type: 'Macro', time: '4h ago', text: 'Federal Reserve hints at rate cuts, boosting risk-on assets.', mood: 'neutral' }
+                ],
+                sentiment: 82,
+                astro: {
+                    transit: 'Jupiter Trine Sun', transitDesc: 'Indicates a period of massive expansion. Auspicious for long-term holding.',
+                    moon: 'Waxing Gibbous', moonDesc: 'Building momentum. Historical 68% correlation with upward price action.',
+                    interference: 'Low / Clear', interferenceClass: 'text-cyber-green text-glow-green', interferenceDesc: 'No major retrogrades affecting ruling planets.',
+                    icon: 'fa-moon'
+                },
+                fallbackChart: [42000, 41500, 48000, 52000, 50500, 61000, 59000, 64230]
+            },
+            'AAPL': {
+                symbol: 'AAPL', // Used for live Stock fetch
+                name: 'Apple Inc.', ticker: 'AAPL', type: 'STOCK', sector: 'TECHNOLOGY', icon: 'https://upload.wikimedia.org/wikipedia/commons/f/fa/Apple_logo_black.svg',
+                fallbackPrice: '$178.25', fallbackChange: '-0.5', 
+                predReturn: '+12.0%', predTimeframe: '12 Months', targetPrice: '$199.64', confidence: 92, risk: 'LOW', riskClass: 'text-cyber-green',
+                omniScore: 74, weights: [30, 50, 15, 5],
+                tech: { verdict: 'NEUTRAL', class: 'text-cyber-gray border-cyber-gray/30 bg-cyber-gray/10', rsi: '45.2', rsiDesc: 'Neutral', macd: '-2.1', macdDesc: 'Bearish', sma: '$182.50', atr: 'Low' },
+                fund: [
+                    { id: 'mcap', label: 'Market Cap', fallback: '$2.75T' },
+                    { label: 'P/E Ratio', fallback: '28.5' },
+                    { label: 'Free Cash Flow', fallback: '$104B' },
+                    { label: 'Innovation Cycle', fallback: 'Maturing', class: 'text-cyber-gray' },
+                    { label: 'Moat', fallback: 'Ecosystem Lock-in' }
+                ],
+                news: [
+                    { type: 'Earnings', time: '1d ago', text: 'Q3 Services revenue beats expectations, offsetting slight hardware decline.', mood: 'pos' },
+                    { type: 'Supply Chain', time: '2d ago', text: 'Minor delays reported in next-gen display manufacturing in Asia.', mood: 'neg' }
+                ],
+                sentiment: 55,
+                astro: {
+                    transit: 'Saturn Square Natal Mars', transitDesc: 'Friction in execution. Delays in new product launches indicated.',
+                    moon: 'Waning Crescent', moonDesc: 'A time for internal restructuring rather than external growth.',
+                    interference: 'Moderate', interferenceClass: 'text-cyber-purple text-glow-purple', interferenceDesc: 'Mercury retrograde in shadow phase affecting tech communications.',
+                    icon: 'fa-moon'
+                },
+                fallbackChart: [195, 190, 185, 188, 175, 180, 177, 178.25]
+            },
+            'SOL': {
+                cgId: 'solana',
+                name: 'Solana', ticker: 'SOL/USD', type: 'CRYPTO', sector: 'LAYER 1', icon: 'https://cryptologos.cc/logos/solana-sol-logo.png',
+                fallbackPrice: '$145.20', fallbackChange: '+8.5',
+                predReturn: '+115%', predTimeframe: '3 Months', targetPrice: '$312.00', confidence: 78, risk: 'HIGH', riskClass: 'text-cyber-red',
+                omniScore: 81, weights: [35, 25, 30, 10],
+                tech: { verdict: 'BULLISH BREAKOUT', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '72.1', rsiDesc: 'Slightly Overbought', macd: '+4.5', macdDesc: 'Accelerating', sma: '$110.00', atr: 'High' },
+                fund: [
+                    { id: 'mcap', label: 'Market Cap', fallback: '$65B' },
+                    { id: 'supply', label: 'Circulating Supply', fallback: '445M SOL' },
+                    { label: 'TPS', fallback: '2,500' },
+                    { label: 'DeFi TVL', fallback: 'Surging', class: 'text-cyber-cyan' },
+                    { label: 'Value Proposition', fallback: 'High-speed Monolithic L1' }
+                ],
+                news: [
+                    { type: 'AI Summary', time: '15m ago', text: 'New validator client upgrade successfully deployed on mainnet.', mood: 'pos' },
+                    { type: 'DEX Volume', time: '3h ago', text: 'Solana DEX volume overtakes Ethereum for the 3rd consecutive day.', mood: 'pos' }
+                ],
+                sentiment: 88,
+                astro: {
+                    transit: 'Mars in Aries', transitDesc: 'Aggressive, fast-paced upward momentum. High volatility.',
+                    moon: 'First Quarter', moonDesc: 'Overcoming obstacles. Strong directional bias forming.',
+                    interference: 'Moderate', interferenceClass: 'text-cyber-purple text-glow-purple', interferenceDesc: 'Minor network alignment turbulence predicted mid-week.',
+                icon: 'fa-meteor'
+            },
+            fallbackChart: [110, 105, 120, 125, 138, 135, 142, 145.20]
+        },
+        'ZOMATO.NS': {
+            symbol: 'ZOMATO.NS', name: 'Zomato Ltd', ticker: 'ZOMATO', type: 'IND STOCK', sector: 'CONSUMER TECH', icon: 'https://upload.wikimedia.org/wikipedia/commons/b/bd/Zomato_Logo.svg',
+            fallbackPrice: '₹264.50', fallbackChange: '+4.2', predReturn: '+85.0%', predTimeframe: '6 Months', targetPrice: '₹489.00', confidence: 89, risk: 'HIGH', riskClass: 'text-cyber-red',
+            omniScore: 92, weights: [25, 40, 20, 15],
+            tech: { verdict: 'PARABOLIC', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '76.5', rsiDesc: 'Overbought', macd: '+12.4', macdDesc: 'Strong Bull', sma: '₹190.00', atr: 'High' },
+            fund: [
+                { id: 'mcap', label: 'Market Cap', fallback: '₹2.3L Cr' },
+                { label: 'Rev Growth', fallback: '+71% YoY' },
+                { label: 'Blinkit Expansion', fallback: 'Aggressive', class: 'text-cyber-green' },
+                { label: 'Profitability', fallback: 'Positive Trajectory' }
+            ],
+            news: [
+                { type: 'Earnings', time: '12h ago', text: 'Stellar Q2 results beat street estimates, Blinkit quick commerce drives exponential growth.', mood: 'pos' },
+                { type: 'Macro', time: '2d ago', text: 'Indian consumer spending sees massive uptick ahead of festival season.', mood: 'pos' }
+            ],
+            sentiment: 94,
+            astro: {
+                transit: 'Mercury Conjunct Uranus', transitDesc: 'Sudden positive shocks in digital commerce and rapid communication/delivery.',
+                moon: 'Full Moon', moonDesc: 'Culmination of efforts, maximum visibility and public hype.',
+                interference: 'Low', interferenceClass: 'text-cyber-green text-glow-green', interferenceDesc: 'Clear path for tech-driven logistics.',
+                icon: 'fa-rocket'
+            },
+            fallbackChart: [150, 165, 180, 210, 205, 230, 250, 264.50]
+        },
+        'RELIANCE.NS': {
+            symbol: 'RELIANCE.NS', name: 'Reliance Ind.', ticker: 'RELIANCE', type: 'IND STOCK', sector: 'CONGLOMERATE', icon: 'https://upload.wikimedia.org/wikipedia/en/9/99/Reliance_Industries_Logo.svg',
+            fallbackPrice: '₹2,950.00', fallbackChange: '+1.5', predReturn: '+22.5%', predTimeframe: '12 Months', targetPrice: '₹3,615.00', confidence: 95, risk: 'LOW', riskClass: 'text-cyber-green',
+            omniScore: 85, weights: [20, 60, 15, 5],
+            tech: { verdict: 'STEADY UPTREND', class: 'text-cyber-cyan border-cyber-cyan/30 bg-cyber-cyan/10', rsi: '58.2', rsiDesc: 'Neutral Bullish', macd: '+45.2', macdDesc: 'Rising', sma: '₹2,700.00', atr: 'Low' },
+            fund: [
+                { id: 'mcap', label: 'Market Cap', fallback: '₹19.9L Cr' },
+                { label: 'Jio Spin-off', fallback: 'Anticipated', class: 'text-cyber-purple' },
+                { label: 'Retail Footprint', fallback: 'Dominant' },
+                { label: 'Green Energy CAPEX', fallback: '₹75,000 Cr' }
+            ],
+            news: [
+                { type: 'Corporate', time: '5h ago', text: 'Chairman announces major investments in AI infrastructure and green energy transition.', mood: 'pos' }
+            ],
+            sentiment: 78,
+            astro: {
+                transit: 'Jupiter in Taurus', transitDesc: 'Massive, grounded expansion of physical and digital assets.',
+                moon: 'First Quarter', moonDesc: 'Solidifying foundations for the next major growth cycle.',
+                interference: 'None', interferenceClass: 'text-cyber-green text-glow-green', interferenceDesc: 'Stable cosmic environment for blue-chip execution.',
+                icon: 'fa-building'
+            },
+            fallbackChart: [2600, 2650, 2750, 2700, 2800, 2850, 2900, 2950]
+        },
+        'RNDR': {
+            cgId: 'render-token', name: 'Render', ticker: 'RNDR/USD', type: 'CRYPTO', sector: 'AI / DEPIN', icon: 'https://cryptologos.cc/logos/render-token-rndr-logo.png',
+            fallbackPrice: '$9.45', fallbackChange: '+14.2', predReturn: '+350%', predTimeframe: '6 Months', targetPrice: '$42.50', confidence: 82, risk: 'EXTREME', riskClass: 'text-cyber-purple text-glow-purple',
+            omniScore: 94, weights: [40, 20, 25, 15],
+            tech: { verdict: 'PRICE DISCOVERY', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '82.1', rsiDesc: 'Heavily Overbought', macd: '+1.2', macdDesc: 'Exponential', sma: '$4.50', atr: 'Extreme' },
+            fund: [
+                { id: 'mcap', label: 'Market Cap', fallback: '$3.6B' },
+                { label: 'GPU Demand', fallback: 'Unprecedented', class: 'text-cyber-cyan' },
+                { label: 'Network Usage', fallback: 'All-Time High' },
+                { label: 'Narrative', fallback: 'AI Compute Nexus' }
+            ],
+            news: [
+                { type: 'Partnership', time: '1h ago', text: 'Rumors circulate regarding integration with major Silicon Valley AI models.', mood: 'pos' },
+                { type: 'On-Chain', time: '12h ago', text: 'Massive supply shock as node operators lock up tokens for tier upgrades.', mood: 'pos' }
+            ],
+            sentiment: 98,
+            astro: {
+                transit: 'Uranus Trine Pluto', transitDesc: 'Revolutionary technological breakthroughs. Paradigm shifts in decentralized power.',
+                moon: 'New Moon', moonDesc: 'Birthing a massive new cycle of hype and utility.',
+                interference: 'High Volatility', interferenceClass: 'text-cyber-red text-glow-red', interferenceDesc: 'Expect violent price swings due to solar flare activity matching network spikes.',
+                icon: 'fa-microchip'
+            },
+            fallbackChart: [4.2, 5.1, 4.8, 6.5, 7.2, 7.0, 8.5, 9.45]
+        },
+        'PEPE': {
+            cgId: 'pepe', name: 'Pepe', ticker: 'PEPE/USD', type: 'CRYPTO', sector: 'MEMECOIN', icon: 'https://cryptologos.cc/logos/pepe-pepe-logo.png',
+            fallbackPrice: '$0.0000084', fallbackChange: '+24.5', predReturn: '+1000%', predTimeframe: '1 Month', targetPrice: '$0.00009', confidence: 45, risk: 'DEGENERATE', riskClass: 'text-cyber-red text-glow-red',
+            omniScore: 71, weights: [50, 0, 40, 10],
+            tech: { verdict: 'MEMETIC BREAKOUT', class: 'text-cyber-green border-cyber-green/30 bg-cyber-green/10', rsi: '88.9', rsiDesc: 'Euphoric', macd: 'Vertical', macdDesc: 'N/A', sma: '$0.000002', atr: 'Off Charts' },
+            fund: [
+                { id: 'mcap', label: 'Market Cap', fallback: '$3.5B' },
+                { label: 'Utility', fallback: 'None', class: 'text-cyber-red' },
+                { label: 'Community', fallback: 'Fanatical' },
+                { label: 'Liquidity', fallback: 'Deep' }
+            ],
+            news: [
+                { type: 'Social', time: '5m ago', text: 'Trending #1 on X globally. Major influencers capitulating to the meme.', mood: 'pos' }
+            ],
+            sentiment: 99,
+            astro: {
+                transit: 'Neptune in Pisces', transitDesc: 'Collective delusion and euphoric dreams detaching from reality.',
+                moon: 'Balsamic', moonDesc: 'Dark phase, highly unpredictable, ruled by chaotic emotions.',
+                interference: 'Severe', interferenceClass: 'text-cyber-red text-glow-red', interferenceDesc: 'Completely ungrounded. Pure speculative casino energy.',
+                icon: 'fa-frog'
+            },
+            fallbackChart: [0.000001, 0.0000015, 0.0000012, 0.000003, 0.000005, 0.0000045, 0.000006, 0.0000084]
+        }
+    };
+
+    let currentAsset = 'BTC';
+        let chartInstance = null;
+
+        // --- LIVE DATA FETCHING ---
+        async function fetchLiveData(assetKey, assetData) {
+            try {
+                if (assetData.type === 'CRYPTO') {
+                    // Use Free CoinGecko API for Crypto
+                    const res = await fetch(`https://api.coingecko.com/api/v3/coins/${assetData.cgId}?localization=false&tickers=false&community_data=false&developer_data=false&sparkline=true`);
+                    const data = await res.json();
+                    return {
+                        price: formatPrice(data.market_data.current_price.usd),
+                        changeNum: data.market_data.price_change_percentage_24h,
+                        changeStr: (data.market_data.price_change_percentage_24h > 0 ? '+' : '') + data.market_data.price_change_percentage_24h.toFixed(2) + '%',
+                        mcap: formatCompact(data.market_data.market_cap.usd),
+                        supply: formatCompact(data.market_data.circulating_supply).replace('$', '') + ' ' + data.symbol.toUpperCase(),
+                        chart: data.market_data.sparkline_7d.price.slice(-24) // Last 24 hours of data
+                    };
+                } else if (assetData.type === 'STOCK' && FINNHUB_API_KEY !== 'DEMO_KEY') {
+                    // Use Finnhub API for Stocks (Requires API Key)
+                    const res = await fetch(`https://finnhub.io/api/v1/quote?symbol=${assetData.symbol}&token=${FINNHUB_API_KEY}`);
+                    const data = await res.json();
+                    if (data && data.c) {
+                        const changePct = ((data.c - data.pc) / data.pc) * 100;
+                        return {
+                            price: formatPrice(data.c),
+                            changeNum: changePct,
+                            changeStr: (changePct > 0 ? '+' : '') + changePct.toFixed(2) + '%',
+                            mcap: null, // Basic quote doesn't return mcap
+                            supply: null,
+                            chart: null
+                        };
+                    }
+                }
+            } catch (error) {
+                console.warn(`Live data fetch failed for ${assetKey}, falling back to static logic.`, error);
+            }
+            return null; // Return null if API fails or no key, UI will use fallback
+        }
+
+        async function updateUI() {
+            const staticData = database[currentAsset];
+            
+            // Set UI to loading state
+            const priceEl = document.getElementById('currentPrice');
+            const changeEl = document.getElementById('priceChange');
+            priceEl.innerText = "FETCHING LIVE...";
+            priceEl.classList.add('animate-pulse', 'text-cyber-cyan');
+            
+            // Header Info Updates
+            document.getElementById('bgTicker').innerText = currentAsset.split('/')[0] || currentAsset;
+            document.getElementById('assetName').innerText = staticData.name;
+            document.getElementById('assetTicker').innerText = staticData.ticker;
+            document.getElementById('assetType').innerText = staticData.type;
+            document.getElementById('assetSector').innerText = staticData.sector;
+            
+            // Handle logo inversion for Apple to make it visible on dark bg
+            const iconEl = document.getElementById('assetIcon');
+            iconEl.src = staticData.icon;
+            if(currentAsset === 'AAPL') iconEl.classList.add('invert');
+            else iconEl.classList.remove('invert');
+
+            // --- FETCH LIVE DATA ---
+            const liveData = await fetchLiveData(currentAsset, staticData);
+            
+            // Reset loading state
+            priceEl.classList.remove('animate-pulse', 'text-cyber-cyan');
+            
+            // Resolve Live vs Fallback data
+            const displayPrice = liveData ? liveData.price : staticData.fallbackPrice;
+            const changeNum = liveData ? liveData.changeNum : parseFloat(staticData.fallbackChange);
+            const displayChange = liveData ? liveData.changeStr : staticData.fallbackChange + '%';
+            const changeClass = changeNum >= 0 ? 'text-cyber-green' : 'text-cyber-red';
+            const changeIcon = changeNum >= 0 ? 'fa-caret-up' : 'fa-caret-down';
+            
+            // Apply Price & Change
+            priceEl.innerText = displayPrice;
+            changeEl.innerHTML = `<i class="fa-solid ${changeIcon}"></i> <span>${displayChange}</span>`;
+            changeEl.className = `font-mono text-lg flex items-center gap-1 ${changeClass}`;
+
+            // Prediction Block
+            document.getElementById('predTimeframe').innerText = staticData.predTimeframe;
+            const projReturnEl = document.getElementById('projectedReturn');
+            projReturnEl.innerText = staticData.predReturn;
+            projReturnEl.className = `font-display text-5xl font-black tracking-tighter mb-2 glitch-effect ${parseFloat(staticData.predReturn) > 0 ? 'text-cyber-green text-glow-green' : 'text-cyber-red text-glow-red'}`;
+            document.getElementById('targetPrice').innerText = staticData.targetPrice;
+            document.getElementById('confidenceBar').style.width = `${staticData.confidence}%`;
+            document.getElementById('confidenceValue').innerText = `${staticData.confidence}%`;
+            document.getElementById('riskLevel').innerText = staticData.risk;
+            document.getElementById('riskLevel').className = `font-mono text-sm mt-1 ${staticData.riskClass}`;
+
+            // Omni Score SVG Animation
+            document.getElementById('omniScoreValue').innerText = staticData.omniScore;
+            const offset = 282.7 - (282.7 * (staticData.omniScore / 100));
+            document.getElementById('omniScoreSvg').style.strokeDashoffset = offset;
+            let strokeColor = '#00f0ff';
+            if (staticData.omniScore < 40) strokeColor = '#ff003c';
+            else if (staticData.omniScore > 80) strokeColor = '#00ff66';
+            document.getElementById('omniScoreSvg').style.stroke = strokeColor;
+
+            // Synthesis Weights
+            document.getElementById('barTech').style.width = `${staticData.weights[0]}%`; document.getElementById('weightTech').innerText = `${staticData.weights[0]}%`;
+            document.getElementById('barFund').style.width = `${staticData.weights[1]}%`; document.getElementById('weightFund').innerText = `${staticData.weights[1]}%`;
+            document.getElementById('barNews').style.width = `${staticData.weights[2]}%`; document.getElementById('weightNews').innerText = `${staticData.weights[2]}%`;
+            document.getElementById('barAstro').style.width = `${staticData.weights[3]}%`; document.getElementById('weightAstro').innerText = `${staticData.weights[3]}%`;
+
+            // Technicals Update
+            const techVerdict = document.getElementById('techVerdict');
+            techVerdict.innerText = staticData.tech.verdict;
+            techVerdict.className = `text-xs font-mono px-2 py-1 rounded border ${staticData.tech.class}`;
+            document.getElementById('valRsi').innerHTML = `${staticData.tech.rsi} <span class="text-xs text-cyber-gray">${staticData.tech.rsiDesc}</span>`;
+            document.getElementById('valMacd').innerHTML = `${staticData.tech.macd} <span class="text-xs text-cyber-gray">${staticData.tech.macdDesc}</span>`;
+            document.getElementById('valSma').innerText = staticData.tech.sma;
+            document.getElementById('valAtr').innerText = staticData.tech.atr;
+
+            // Fundamentals Update (Merge Live data if available)
+            const fundList = document.getElementById('fundList');
+            fundList.innerHTML = '';
+            staticData.fund.forEach(f => {
+                let displayVal = f.fallback;
+                if (liveData && f.id === 'mcap' && liveData.mcap) displayVal = `<span class="text-cyber-green mr-1"><i class="fa-solid fa-bolt text-[10px]"></i></span>` + liveData.mcap;
+                if (liveData && f.id === 'supply' && liveData.supply) displayVal = `<span class="text-cyber-green mr-1"><i class="fa-solid fa-bolt text-[10px]"></i></span>` + liveData.supply;
+                
+                fundList.innerHTML += `
+                    <li class="flex justify-between border-b border-white/5 pb-2 items-center">
+                        <span class="text-cyber-gray">${f.label}</span>
+                        <span class="${f.class || 'text-white'} text-right w-1/2 overflow-hidden text-ellipsis whitespace-nowrap">${displayVal}</span>
+                    </li>`;
+            });
+
+            // News / Sentiment Update
+            document.getElementById('sentimentCircle').style.setProperty('--percent', `${staticData.sentiment}%`);
+            let sColor = '#00ff66';
+            if(staticData.sentiment < 40) sColor = '#ff003c';
+            else if(staticData.sentiment < 60) sColor = '#8a9ab0';
+            document.getElementById('sentimentCircle').style.setProperty('--fill-color', sColor);
+            document.getElementById('sentimentCircle').querySelector('span').innerText = staticData.sentiment;
+            document.getElementById('sentimentCircle').querySelector('span').style.color = sColor;
+
+            const newsFeed = document.getElementById('newsFeed');
+            newsFeed.innerHTML = '';
+            staticData.news.forEach(n => {
+                let moodClass = n.mood === 'pos' ? 'cyber-green' : (n.mood === 'neg' ? 'cyber-red' : 'cyber-gray');
+                newsFeed.innerHTML += `
+                    <div class="bg-cyber-dark/30 p-3 rounded border border-${moodClass}/10 hover:border-${moodClass}/30 transition-colors">
+                        <div class="flex justify-between items-start mb-1">
+                            <span class="text-[10px] font-mono text-${moodClass} uppercase">${n.type}</span>
+                            <span class="text-[10px] font-mono text-cyber-gray">${n.time}</span>
+                        </div>
+                        <p class="text-sm font-sans text-gray-300">${n.text}</p>
+                    </div>`;
+            });
+
+            // Astrology / Esoteric Update
+            document.getElementById('astroTransit').innerText = staticData.astro.transit;
+            document.getElementById('astroTransitDesc').innerText = staticData.astro.transitDesc;
+            document.getElementById('astroMoon').innerText = staticData.astro.moon;
+            document.getElementById('astroMoonDesc').innerText = staticData.astro.moonDesc;
+            document.getElementById('astroInterference').innerText = staticData.astro.interference;
+            document.getElementById('astroInterference').className = `font-display text-xl mb-2 ${staticData.astro.interferenceClass}`;
+            document.getElementById('astroInterferenceDesc').innerText = staticData.astro.interferenceDesc;
+            document.getElementById('moonPhaseIcon').className = `fa-solid ${staticData.astro.icon} text-cyber-red text-xl text-glow-red`;
+
+            // Draw Chart (Live Sparkline or Fallback)
+            const chartData = (liveData && liveData.chart) ? liveData.chart : staticData.fallbackChart;
+            updateChart(chartData, parseFloat(staticData.predReturn) > 0);
+        }
+
+        function updateChart(dataPoints, isBullish) {
+            const ctx = document.getElementById('mainChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const gradient = ctx.createLinearGradient(0, 0, 0, 400);
+            const color = isBullish ? 'rgba(0, 255, 102, 1)' : 'rgba(255, 0, 60, 1)';
+            const gradientColor = isBullish ? 'rgba(0, 255, 102, 0.2)' : 'rgba(255, 0, 60, 0.2)';
+            
+            gradient.addColorStop(0, gradientColor);
+            gradient.addColorStop(1, 'rgba(5, 10, 21, 0)');
+
+            // Generate generic labels based on array length
+            const labels = dataPoints.map((_, i) => `T-${dataPoints.length - 1 - i}`);
+            labels[labels.length - 1] = 'NOW';
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Price Vector',
+                        data: dataPoints,
+                        borderColor: color,
+                        borderWidth: 2,
+                        backgroundColor: gradient,
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: '#050a15',
+                        pointBorderColor: color,
+                        pointBorderWidth: 0,
+                        pointRadius: 0,
+                        pointHoverRadius: 6
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                    scales: {
+                        x: { display: false }, // Hide X axis for cleaner cyber look
+                        y: { grid: { color: 'rgba(0, 240, 255, 0.05)' }, ticks: { color: '#8a9ab0', font: { family: 'Space Mono', size: 10 } } }
+                    }
+                }
+            });
+        }
+
+        const searchInput = document.getElementById('searchInput');
+        const searchResults = document.getElementById('searchResults');
+
+        searchInput.addEventListener('input', (e) => {
+            const val = e.target.value.toUpperCase();
+            if (val.length > 0) {
+                searchResults.classList.remove('hidden');
+                searchResults.innerHTML = '';
+                const matches = Object.keys(database).filter(k => k.includes(val) || database[k].name.toUpperCase().includes(val));
+                
+                if (matches.length > 0) {
+                    matches.forEach(match => {
+                        const div = document.createElement('div');
+                        div.className = 'px-4 py-2 hover:bg-cyber-cyan/10 cursor-pointer text-sm font-mono flex justify-between items-center border-b border-white/5 last:border-0';
+                        div.innerHTML = `<span class="text-white">${database[match].name}</span> <span class="text-cyber-cyan">${match}</span>`;
+                        div.onclick = () => loadAsset(match);
+                        searchResults.appendChild(div);
+                    });
+                } else {
+                    searchResults.innerHTML = '<div class="px-4 py-2 text-sm font-mono text-cyber-gray">No known quantum vectors found.</div>';
+                }
+            } else {
+                searchResults.classList.add('hidden');
+            }
+        });
+
+        document.addEventListener('click', (e) => {
+            if (e.target !== searchInput && e.target !== searchResults) searchResults.classList.add('hidden');
+        });
+
+        // Load Asset Helper
+        function loadAsset(key) {
+            currentAsset = key;
+            searchInput.value = '';
+            searchResults.classList.add('hidden');
+            document.body.style.opacity = '0.7';
+            setTimeout(() => {
+                updateUI();
+                document.body.style.opacity = '1';
+            }, 300);
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        // Initialize Quantum Radar (Hot Targets)
+        function initRadar() {
+            const radarGrid = document.getElementById('radarGrid');
+            const hotAssets = ['ZOMATO.NS', 'RNDR', 'RELIANCE.NS', 'PEPE'];
+            
+            radarGrid.innerHTML = '';
+            hotAssets.forEach(assetKey => {
+                const asset = database[assetKey];
+                if(!asset) return;
+                
+                const isCrypto = asset.type === 'CRYPTO';
+                const themeColor = isCrypto ? 'cyber-cyan' : 'cyber-purple';
+                const invertClass = (assetKey === 'RELIANCE.NS' || assetKey === 'AAPL') ? 'invert opacity-70' : '';
+
+                radarGrid.innerHTML += `
+                    <div class="bg-cyber-dark/50 border border-${themeColor}/20 hover:border-${themeColor}/80 p-4 rounded-lg cursor-pointer transition-all hover:-translate-y-1 hover:shadow-[0_0_15px_rgba(${isCrypto?'0,240,255':'176,38,255'},0.3)] group" onclick="loadAsset('${assetKey}')">
+                        <div class="flex justify-between items-start mb-3">
+                            <div class="flex items-center gap-3">
+                                <img src="${asset.icon}" class="w-8 h-8 object-contain ${invertClass}">
+                                <div>
+                                    <h4 class="font-display font-bold text-white text-sm">${asset.ticker}</h4>
+                                    <div class="text-[9px] font-mono text-${themeColor}">${asset.type}</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="flex justify-between items-end border-t border-white/5 pt-3">
+                            <div>
+                                <div class="text-[9px] font-mono text-cyber-gray uppercase mb-0.5">Vector Target</div>
+                                <div class="font-mono text-sm text-white">${asset.targetPrice}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-[9px] font-mono text-cyber-gray uppercase mb-0.5">Proj. Return</div>
+                                <div class="font-display text-lg font-bold text-cyber-green text-glow-green">${asset.predReturn}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+
+        // Add some random flickering to numbers to make it feel "live"
+        setInterval(() => {
+            const rsiEl = document.getElementById('valRsi');
+            if(rsiEl && Math.random() > 0.7) {
+                const current = parseFloat(rsiEl.innerText);
+                const shift = (Math.random() * 0.4 - 0.2).toFixed(1);
+                const staticData = database[currentAsset];
+                rsiEl.innerHTML = `${(current + parseFloat(shift)).toFixed(1)} <span class="text-xs text-cyber-gray">${staticData.tech.rsiDesc}</span>`;
+            }
+        }, 2000);
+
+        // Initial Render
+        window.onload = () => {
+            updateUI();
+            initRadar();
+        };
+    </script>
+</body>
+</html>
